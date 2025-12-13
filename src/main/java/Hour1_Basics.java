@@ -15,8 +15,8 @@ public class Hour1_Basics {
                         System.out.println(Thread.currentThread().getName() + " Interrupted : Cleaning Up");
                         return;
                     }
-                    System.out.println(Thread.currentThread().getName()+"Processing chunk "+i);
-                    Thread.sleep(1000);
+                    System.out.println(Thread.currentThread().getName()+" Processing chunk "+i);
+                    Thread.sleep(1250);
 
                 }
             } catch (InterruptedException e) {
