@@ -148,3 +148,44 @@ public synchronized void put(T item) throws InterruptedException {
 ```
 
 
+### ExecutorService
+
+```java
+public class Executor {
+    static void main(String[] args) {
+        ExecutorService executor = Executors.newFixedThreadPool(17);
+
+        for (int i = 0; i < 20; i++) {
+            int taskId = i;
+            executor.submit(() -> {
+                String threadName = Thread.currentThread().getName();
+
+                try {
+                    Thread.sleep(10); // Simulate 1 sec work
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+            });
+        }
+
+        // 3. Shutdown (Stop accepting new tasks)
+        executor.shutdown();
+
+        // 4. Wait for completion (Optional but common)
+        try {
+            // "Blocks" until all tasks are done or timeout occurs
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                executor.shutdownNow(); // Force kill if taking too long
+            }
+        } catch (
+                InterruptedException e) {
+            executor.shutdownNow();
+        }
+    }
+}
+
+```
+
+
+
