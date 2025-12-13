@@ -188,4 +188,40 @@ public class Executor {
 ```
 
 
+### SingleThreadExecutor
+```
+Self-Healing background processor. This is perfect for things like:
+Event logging agents.
+File system watchers.
+Keep-alive heartbeats.
+Even if a bad plugin or a corrupted file crashes the current operation, the service stays alive to process the next one.
+```
+```java
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class SingleThreadSurvival {
+    public static void main(String[] args) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+
+        // TASK A: The Saboteur
+        executor.submit(() -> {
+            String name = Thread.currentThread().getName();
+            System.out.println(name + ": Task A started.");
+            throw new RuntimeException("CRASH! Task A died.");
+        });
+
+        // TASK B: The Survivor
+        executor.submit(() -> {
+            String name = Thread.currentThread().getName();
+            System.out.println(name + ": Task B started. I am a new thread!");
+        });
+
+        executor.shutdown();
+    }
+}
+```
+
+
+
 
