@@ -1,48 +1,42 @@
+import java.util.concurrent.CountDownLatch;
+
 public class Hour1_Basics {
 
     public static void main(String[] args) {
-        // The "Job" definition
+
+        CountDownLatch startGate = new CountDownLatch(1);
         Runnable heavyTask = () -> {
-            System.out.println(Thread.currentThread().getName() + ": Starting heavy processing...");
-
             try {
-                // Simulate work (e.g., downloading a file)
-                for (int i = 0; i < 5; i++) {
-                    // Check if someone asked us to stop
-                    if (Thread.currentThread().isInterrupted()) {
-                        System.out.println(Thread.currentThread().getName() + ": I was interrupted! Cleaning up...");
-                        return; // Graceful exit
-                    }
+                startGate.await();
 
-                    System.out.println(Thread.currentThread().getName() + ": Processing chunk " + i);
-                    Thread.sleep(1000); // Simulate 1 sec work (This throws InterruptedException!)
+                System.out.println(Thread.currentThread().getName() + "Running heavy task");
+                for (int i = 0; i < 5; i++) {
+                    if(Thread.currentThread().isInterrupted()){
+                        System.out.println(Thread.currentThread().getName() + " Interrupted : Cleaning Up");
+                        return;
+                    }
+                    System.out.println(Thread.currentThread().getName()+"Processing chunk "+i);
+                    Thread.sleep(1000);
+
                 }
             } catch (InterruptedException e) {
-                // This block runs if we are interrupted WHILE sleeping
-                System.out.println(Thread.currentThread().getName() + ": Woke up by interrupt! Exiting.");
+                System.out.println(Thread.currentThread().getName()+" Woke up by interrupt : exiting");
             }
         };
-
-        // Create the worker
         Thread worker = new Thread(heavyTask, "Worker-1");
+        worker.start();
+        Thread worker2 = new Thread(heavyTask, "Worker-2");
+        worker2.start();
 
-        // Optional: Daemon threads die automatically when the main application finishes.
-        // worker.setDaemon(true);
-
-        System.out.println("Main: Starting worker...");
-        worker.start(); // Calls the OS to create a thread
-
-        // Main thread continues in parallel
-        try {
-            System.out.println("Main: Waiting 2.5 seconds...");
+        System.out.println("Main waiting for 2.5 seconds....");
+        startGate.countDown();
+        try{
             Thread.sleep(2500);
-
-            System.out.println("Main: Tired of waiting. Interrupting worker!");
-            worker.interrupt(); // Sets the interrupt flag on the worker
-
-            worker.join(); // Main thread pauses here until worker effectively dies
-            System.out.println("Main: Worker is dead. System exiting.");
-
+            System.out.println("Main tired of waiting");
+            worker.interrupt();
+            worker.join();
+            worker2.join();
+            System.out.println("Main: worker is dead, System exiting");
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
