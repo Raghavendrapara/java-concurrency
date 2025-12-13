@@ -104,3 +104,47 @@ public static DatabaseConnection getInstance() {
 ```
 
 
+### Singleton modern methodology
+
+```java
+public enum DatabaseSingleton {
+    INSTANCE;
+
+    private String connectionString;
+
+    DatabaseSingleton() {
+        System.out.println("Initializing Database Connection...");
+        this.connectionString = "jdbc:mysql://localhost:3306/mydb";
+    }
+
+    public void executeQuery(String query) {
+        System.out.println("Executing '" + query + "' on " + connectionString);
+    }
+    
+    public void setConnectionString(String conn) {
+        this.connectionString = conn;
+    }
+}
+```
+
+### Wait inside loops not if block
+
+```java
+public synchronized void put(T item) throws InterruptedException {
+            // STEP 1: Check condition using WHILE (not IF)
+            // IF can cause issues with the OS scheduler
+            while (queue.size() == capacity) {
+                System.out.println("Queue full! Producer waiting...");
+                wait(); // Releases lock, sleeps. Re-acquires lock upon waking.
+            }
+
+            // STEP 2: Do the work
+            queue.add(item);
+            System.out.println("Produced: " + item);
+
+            // STEP 3: Notify others
+            notifyAll(); // Wake up consumers who might be waiting
+        }
+```
+
+
