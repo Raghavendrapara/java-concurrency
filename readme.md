@@ -222,6 +222,101 @@ public class SingleThreadSurvival {
 }
 ```
 
+### await() try with resources deadlock
+
+```
+Deadlock created by the try-with-resources block.
+This is a subtle behavior change in modern Java.
+The Reason It Hangs
+In Java 21+, the closing brace } of a try (ExecutorService pool ...) block automatically blocks and waits for all tasks to finish (it calls close(), which calls awaitTermination()).
+Main Thread: Reaches the closing brace }. It says: "I cannot leave this block until all 5 tasks are finished."
+Worker Threads: Are sitting inside the block at startGun.await(). They say: "We cannot finish until the Main Thread fires the gun."
+The Gun: The startGun.countDown() line is outside the block. The Main Thread can never reach it because it is stuck at the closing brace.
+```
+```java
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class Hour7_HorseLatch_Fixed {
+    public static void main(String[] args) throws InterruptedException {
+        // 1. Setup the Latches
+        CountDownLatch startGun = new CountDownLatch(1);
+        CountDownLatch finishLine = new CountDownLatch(5);
+
+        System.out.println("Horses are walking to the gate...");
+
+        // Note: We remove the 'try-with-resources' block here just to prove
+        // that the 'finishLine.await()' is what actually makes us wait.
+        ExecutorService pool = Executors.newFixedThreadPool(5);
+
+        for (int i = 0; i < 5; i++) {
+            pool.submit(() -> {
+                try {
+                    // STEP A: Wait for the gun
+                    startGun.await(); 
+                    
+                    // STEP B: Run!
+                    long duration = (long) (Math.random() * 2000);
+                    System.out.println(Thread.currentThread().getName() + " is running...");
+                    Thread.sleep(duration);
+                    
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } finally {
+                    System.out.println(Thread.currentThread().getName() + " CROSSED THE LINE.");
+                    // STEP C: Signal completion
+                    finishLine.countDown(); 
+                }
+            });
+        }
+
+        // 2. The Main Thread pauses briefly to ensure all threads are blocked on await()
+        Thread.sleep(100); 
+        System.out.println("Ready...");
+        System.out.println("Set...");
+        
+        // 3. BANG! (Now they all start exactly here)
+        startGun.countDown(); 
+
+        // 4. Wait for everyone to finish
+        finishLine.await(); 
+        System.out.println("Race Over! Shutting down.");
+        
+        pool.shutdown();
+    }
+}
+```
+
+### Concurrent Collections
+```java
+
+```
+
+### Atomic usage
+
+```
+//EAGER - for primitives/avoiding specific locks
+map.putIfAbsent("key", 1);
+// THE DEADLOCK TRAP
+
+Map<String, Integer> map = new ConcurrentHashMap<>();
+//use putIfAbsent
+map.computeIfAbsent("A", k -> {
+    // CRITICAL ERROR: Accessing the map inside the computation!
+    // If "B" hashes to the same bucket as "A", this thread hangs forever.
+    map.put("B", 1); 
+    return 2;
+});
+
+computeIfAbsent locks the bucket while the lambda runs:
+
+If your computation takes 5 seconds (e.g., a DB call),
+you are blocking all other threads that want to read/write any key in that same bucket for 5 seconds.
+
+//LAZY -> use for heavy tasks to reduce latency
+map.computeIfAbsent("key", k -> 1);
+```
 
 
 
