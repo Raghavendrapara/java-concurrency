@@ -320,3 +320,83 @@ map.computeIfAbsent("key", k -> 1);
 
 
 
+### Scatter Gather Pattern
+```java
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+public class TravelAggregator {
+    public static void main(String[] args) {
+        // Create a thread pool (The workers)
+        ExecutorService pool = Executors.newFixedThreadPool(10);
+        long start = System.currentTimeMillis();
+
+        System.out.println("Main: searching for flights...");
+
+        // 1. Launch Request to British Airways
+        CompletableFuture<String> baFuture = CompletableFuture.supplyAsync(() -> {
+            sleep(2000); // Simulate API latency
+            System.out.println("   -> British Airways found: $800");
+            return "BA: $800";
+        }, pool);
+
+        // 2. Launch Request to Emirates (Same time!)
+        CompletableFuture<String> emiratesFuture = CompletableFuture.supplyAsync(() -> {
+            sleep(2000); 
+            System.out.println("   -> Emirates found: $750");
+            return "Emirates: $750";
+        }, pool);
+
+        // 3. Launch Request to Lufthansa (Same time!)
+        CompletableFuture<String> lufthansaFuture = CompletableFuture.supplyAsync(() -> {
+            sleep(2000); 
+            System.out.println("   -> Lufthansa found: $900");
+            return "Lufthansa: $900";
+        }, pool);
+
+        // 4. The "Aggregation" Point
+        // allOf() waits for ALL of them to finish, but they run in parallel.
+        CompletableFuture<Void> allFutures = CompletableFuture.allOf(baFuture, emiratesFuture, lufthansaFuture);
+
+        // 5. Block main thread until the slowest one finishes
+        allFutures.join(); 
+
+        long end = System.currentTimeMillis();
+        
+        System.out.println("--- SEARCH COMPLETE ---");
+        System.out.println("Total Time: " + (end - start) + "ms"); // Prints ~2000ms, NOT 6000ms
+        
+        // 6. Collect results safely
+        // In real life, you would put these in a List to send to the Frontend
+        String bestFlight = Stream.of(baFuture, emiratesFuture, lufthansaFuture)
+                                  .map(CompletableFuture::join) // extracting values
+                                  .collect(Collectors.joining(", "));
+        
+        System.out.println("Results: " + bestFlight);
+
+        pool.shutdown();
+    }
+
+    private static void sleep(int ms) {
+        try { Thread.sleep(ms); } catch (Exception e) {}
+    }
+}
+```
+
+
+### Parallel Streams
+```
+List<Integer> unsafeList = new ArrayList<>();
+IntStream.range(0, 1000).parallel().forEach(i -> {
+    unsafeList.add(i); // RACE CONDITION! ArrayList is not thread-safe.
+});
+//Optimal
+List<Integer> safeList = IntStream.range(0, 1000)
+                                  .parallel()
+                                  .boxed()
+                                  .collect(Collectors.toList());
+
+```
